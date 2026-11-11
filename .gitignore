@@ -218,3 +218,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS
+.DS_Store
+
+# Local copies of upstream code / data that should not be tracked
+/lightcurvelynx/
+/obstable/
+
+# Notebooks: only track the explicitly whitelisted ones below
+*.ipynb
+!/jem-notebooks/jem-rubin_dp2.ipynb
+!/jem-notebooks/jem-rubin_dr1_snia.ipynb
+
+# Other local files not to track
+/.vscode/
+/Plan for DR1 Sample.md
+/jem-notebooks/README.md
+/jem-notebooks/pre_executed/
+/jem-notebooks/rubin_salt3_covariance_files.zip
+/jem-notebooks/study_plan_for_simulation.md
+/sims/dr1_snia_v5.3.7/
