@@ -112,7 +112,7 @@ def fit_one(args):
     Parameters
     ----------
     args : tuple
-        (idx, lightcurve, params_dict, model_name). Packed as a single tuple so
+        (idx, lightcurve, params_dict, model_name, alpha, beta). Packed as a single tuple so
         the function can be used directly with Executor.map().
 
     Returns
@@ -121,7 +121,7 @@ def fit_one(args):
         The fit results and coverage statistics, or None if the object was not
         detected or the fit failed.
     """
-    idx, lightcurve, params_dict, model_name = args
+    idx, lightcurve, params_dict, model_name, alpha, beta = args
     if not BAND_NAMES:
         register_passbands()
 
@@ -169,6 +169,46 @@ def fit_one(args):
         row[f"true_{name}"] = params_dict[f"source.{name}"]
         row[f"fit_{name}"] = result.parameters[result.param_names.index(name)]
         row[f"err_{name}"] = result.errors.get(name, np.nan)
+
+    # sncosmo.fit_lc already computes the covariance of the FITTED parameters.
+    # Its axes follow result.vparam_names (NOT result.param_names, which also
+    # includes the fixed redshift). Save the ten independent entries of the
+    # symmetric 4x4 matrix as scalar columns that are easy to write to Parquet.
+    names = list(result.vparam_names)
+    cov = result.covariance
+    cov = None if cov is None else np.asarray(cov, dtype=float)
+    valid_cov = (
+        cov is not None and cov.shape == (len(names), len(names))
+        and np.all(np.isfinite(cov))
+    )
+    cov_index = {name: i for i, name in enumerate(names)}
+    row["covariance_available"] = bool(valid_cov and all(p in cov_index for p in FIT_PARAMS))
+
+    for i, p in enumerate(FIT_PARAMS):
+        for q in FIT_PARAMS[i:]:
+            row[f"cov_{p}_{q}"] = (
+                float(cov[cov_index[p], cov_index[q]])
+                if row["covariance_available"] else np.nan
+            )
+    # Propagate the fitted (x0, x1, c) covariance into the Tripp mu variance.
+    # These are measurement-only errors; intrinsic magnitude scatter is added
+    # separately at the cosmological likelihood stage.
+    mu_var = np.nan
+    x0 = float(fitted_model["x0"])
+    if row["covariance_available"] and np.isfinite(x0) and x0 > 0:
+        jacobian = np.array([
+            -2.5 / (np.log(10.0) * x0),
+            alpha,
+            -beta,
+        ])
+        indices = [cov_index[p] for p in ["x0", "x1", "c"]]
+        cov_mu = cov[np.ix_(indices, indices)]
+        mu_var = float(jacobian @ cov_mu @ jacobian)
+
+    if not np.isfinite(mu_var) or mu_var < 0.0:
+        mu_var = np.nan
+    row["var_mu_fit"] = mu_var
+    row["err_mu_fit"] = np.sqrt(mu_var)
     return row
 
 
