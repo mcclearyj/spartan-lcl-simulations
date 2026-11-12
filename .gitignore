@@ -230,6 +230,7 @@ __marimo__/
 *.ipynb
 !/jem-notebooks/jem-rubin_dp2.ipynb
 !/jem-notebooks/jem-rubin_dr1_snia.ipynb
+!/jem-notebooks/jem-rubin_dr1_snia_with_covmat.ipynb
 
 # Other local files not to track
 /.vscode/
@@ -238,4 +239,7 @@ __marimo__/
 /jem-notebooks/pre_executed/
 /jem-notebooks/rubin_salt3_covariance_files.zip
 /jem-notebooks/study_plan_for_simulation.md
+/jem-notebooks/deprecated
 /sims/dr1_snia_v5.3.7/
+/sims/intro_nb
+*.zip
