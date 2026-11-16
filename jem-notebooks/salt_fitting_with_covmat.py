@@ -137,11 +137,15 @@ def fit_one(args):
             data,
             model,
             FIT_PARAMS,
-            bounds={"t0": (data["time"].min() - 30, data["time"].max() + 30), "x1": (-8, 8), "c": (-0.5, 0.5)},
+            bounds={
+                "t0": (data["time"].min() - 30, data["time"].max() + 30),
+                "x1": (-8, 8),
+                "c": (-0.5, 0.5),
+            },
             phase_range=(-15.0, 45.0),  # Only use data within SALT's well-trained phase range.
             warn=False,
         )
-    except (RuntimeError, ValueError):
+    except (RuntimeError, ValueError) as e:
         return None
 
     # Record the light curve coverage relative to the *fitted* t0, for the quality cuts.
@@ -178,8 +182,7 @@ def fit_one(args):
     cov = result.covariance
     cov = None if cov is None else np.asarray(cov, dtype=float)
     valid_cov = (
-        cov is not None and cov.shape == (len(names), len(names))
-        and np.all(np.isfinite(cov))
+        cov is not None and cov.shape == (len(names), len(names)) and np.all(np.isfinite(cov))
     )
     cov_index = {name: i for i, name in enumerate(names)}
     row["covariance_available"] = bool(valid_cov and all(p in cov_index for p in FIT_PARAMS))
@@ -187,8 +190,7 @@ def fit_one(args):
     for i, p in enumerate(FIT_PARAMS):
         for q in FIT_PARAMS[i:]:
             row[f"cov_{p}_{q}"] = (
-                float(cov[cov_index[p], cov_index[q]])
-                if row["covariance_available"] else np.nan
+                float(cov[cov_index[p], cov_index[q]]) if row["covariance_available"] else np.nan
             )
     # Propagate the fitted (x0, x1, c) covariance into the Tripp mu variance.
     # These are measurement-only errors; intrinsic magnitude scatter is added
@@ -196,11 +198,13 @@ def fit_one(args):
     mu_var = np.nan
     x0 = float(fitted_model["x0"])
     if row["covariance_available"] and np.isfinite(x0) and x0 > 0:
-        jacobian = np.array([
-            -2.5 / (np.log(10.0) * x0),
-            alpha,
-            -beta,
-        ])
+        jacobian = np.array(
+            [
+                -2.5 / (np.log(10.0) * x0),
+                alpha,
+                -beta,
+            ]
+        )
         indices = [cov_index[p] for p in ["x0", "x1", "c"]]
         cov_mu = cov[np.ix_(indices, indices)]
         mu_var = float(jacobian @ cov_mu @ jacobian)
